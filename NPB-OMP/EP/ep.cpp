@@ -59,6 +59,7 @@ Authors of the OpenMP code:
 #include "omp.h"
 #include "../common/npb-CPP.hpp"
 #include "npbparams.hpp"
+#include <immintrin.h>
 
 /*
  * --------------------------------------------------------------------
@@ -222,20 +223,58 @@ int main(int argc, char **argv){
 			 * vectorizable.
 			 */
 			if(timers_enabled && thread_id==0){timer_start(1);}
-			for(i=0; i<NK; i++){
-				x1 = 2.0 * x[2*i] - 1.0;
-				x2 = 2.0 * x[2*i+1] - 1.0;
-				t1 = pow2(x1) + pow2(x2);
-				if(t1 <= 1.0){
-					t2 = sqrt(-2.0 * log(t1) / t1);
-					t3 = (x1 * t2);
-					t4 = (x2 * t2);
-					l = max(fabs(t3), fabs(t4));
-					qq[l] += 1.0;
-					sx = sx + t3;
-					sy = sy + t4;
-				}
-			}
+
+            typedef __m512d vec_double; // Define a SIMD vector type for double precision
+            typedef __mmask8 vec_mask; // Define a SIMD vector type for double precision
+            const vec_double zero = _mm512_setzero_pd(); // Vector of zeros for comparison
+            vec_double sx_vec = _mm512_setzero_pd(); // Vector of zeros for comparison
+            vec_double sy_vec = _mm512_setzero_pd(); // Vector of zeros for comparison
+
+
+            // Vectorized loop with AVX-512
+            for (i = 0; i < NK; i += 8) {
+                // Load x values into SIMD vectors
+                vec_double x1_vec = _mm512_loadu_pd(&x[2 * i]);
+                vec_double x2_vec = _mm512_loadu_pd(&x[2 * i + 8]);
+            
+                // t1 = pow2(x1) + pow2(x2)
+                vec_double t1 = _mm512_add_pd(_mm512_mul_pd(x1_vec, x1_vec), _mm512_mul_pd(x2_vec, x2_vec));
+            
+                // Create mask for elements where t1 <= 1.0
+                vec_mask mask = _mm512_cmp_pd_mask(t1, _mm512_set1_pd(1.0), _CMP_LE_OQ);
+            
+                // t2 = sqrt(-2.0 * log(t1) / t1)
+                vec_double t2 = _mm512_sqrt_pd(
+                    _mm512_div_pd(
+                        _mm512_mul_pd(
+                            _mm512_set1_pd(-2.0), _mm512_mask_log_pd(zero, mask, t1) 
+                        ),
+                        t1
+                    )
+                );
+                
+                vec_double t3 = _mm512_mul_pd(x1_vec, t2);
+                vec_double t4 = _mm512_mul_pd(x2_vec, t2);
+        
+                vec_double abs_t3 = _mm512_max_pd(t3, _mm512_sub_pd(zero, t3));
+                vec_double abs_t4 = _mm512_max_pd(t4, _mm512_sub_pd(zero, t4));
+                vec_double l = _mm512_max_pd(abs_t3, abs_t4);
+        
+                for (int j = 0; j < 8; j++) {
+                    int index = (int)l[j];
+                    qq[index] += 1.0;
+                }
+        
+                // Update sx and sy
+                sx_vec = _mm512_add_pd(sx_vec, t3);
+                sy_vec = _mm512_add_pd(sy_vec, t4);
+            }
+        
+            if(timers_enabled && thread_id==0){timer_stop(1);}
+
+            sx = _mm512_reduce_add_pd (sx_vec);
+            sy = _mm512_reduce_add_pd (sy_vec);
+
 			if(timers_enabled && thread_id==0){timer_stop(1);}
 		}
 
