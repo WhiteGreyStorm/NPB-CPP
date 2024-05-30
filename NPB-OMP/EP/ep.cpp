@@ -173,6 +173,8 @@ int main(int argc, char **argv){
 	sx = 0.0;
 	sy = 0.0;
 
+    #pragma omp target
+    #pragma omp for
 	for(i=0; i<=NQ-1; i++){
 		q[i] = 0.0;
 	}
@@ -183,7 +185,11 @@ int main(int argc, char **argv){
 	 * have more numbers to generate than others
 	 */
 	k_offset = -1;
-
+    
+    #pragma omp target enter data map(to: x[0:NK_PLUS], q[0:NQ])
+    {
+    
+    #pragma omp target update to(x,q)
     #pragma omp parallel
     {
         double t1, t2, t3, t4, x1, x2;
@@ -191,6 +197,8 @@ int main(int argc, char **argv){
         double qq[NQ];		/* private copy of q[0:NQ-1] */
         double x[NK_PLUS];
 
+        #pragma omp target
+        #pragma omp for
         for (i = 0; i < NQ; i++) qq[i] = 0.0;
 
        	#pragma omp for reduction(+:sx,sy)
@@ -222,6 +230,7 @@ int main(int argc, char **argv){
 			 * vectorizable.
 			 */
 			if(timers_enabled && thread_id==0){timer_start(1);}
+            #pragma omp parallel
 			for(i=0; i<NK; i++){
 				x1 = 2.0 * x[2*i] - 1.0;
 				x2 = 2.0 * x[2*i+1] - 1.0;
@@ -245,14 +254,19 @@ int main(int argc, char **argv){
         }
 
 	} /* end of parallel region */
+    #pragma omp target update from(x,q)
 
+    #pragma omp target map(to: q[0:NQ])
+    #pragma omp for
 	for(i=0; i<=NQ-1; i++){
 		gc = gc + q[i];
 	}
 
 	timer_stop(0);
 	tm = timer_read(0);
+    }
 
+    #pragma omp target exit data map(delete: x[0:NK_PLUS], q[0:NQ])
 	nit = 0;
 	verified = TRUE;
 	if(M == 24){
