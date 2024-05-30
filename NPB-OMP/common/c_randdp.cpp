@@ -77,7 +77,7 @@ Authors of the C++ code:
  * 
  * ---------------------------------------------------------------------
  */
-double randlc(double *x, double a){    
+void randlc(double *x, double a){    
 	double t1,t2,t3,t4,a1,a2,x1,x2,z;
 
 	/*
@@ -105,8 +105,6 @@ double randlc(double *x, double a){
 	t3 = t23 * z + a2 * x2;
 	t4 = (int)(r46 * t3);
 	(*x) = t3 - t46 * t4;
-
-	return (r46 * (*x));
 }
 
 /*

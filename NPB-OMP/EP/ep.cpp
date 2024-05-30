@@ -147,7 +147,7 @@ int main(int argc, char **argv){
 	 * sure these initializations cannot be eliminated as dead code.
 	 */
 	vranlc(0, &dum[0], dum[1], &dum[2]);
-	dum[0] = randlc(&dum[1], dum[2]);
+	randlc(&dum[1], dum[2]);
 	for(i=0; i<NK_PLUS; i++){x[i] = -1.0e99;}
 	Mops = log(sqrt(fabs(max(1.0, 1.0))));
 
@@ -164,7 +164,7 @@ int main(int argc, char **argv){
 	t1 = A;
 
 	for(i=0; i<MK+1; i++){
-		t2 = randlc(&t1, t1);
+		randlc(&t1, t1);
 	}
 
 	an = t1;
@@ -203,9 +203,9 @@ int main(int argc, char **argv){
 			/* find starting seed t1 for this kk */
 			for(i=1; i<=100; i++){
 				ik = kk / 2;
-				if((2*ik)!=kk){t3=randlc(&t1,t2);}
+				if((2*ik)!=kk){randlc(&t1,t2);}
 				if(ik==0){break;}
-				t3=randlc(&t2,t2);
+				randlc(&t2,t2);
 				kk=ik;
 			}
 
